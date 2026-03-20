@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TWIN::AI — Learning Digital Twin</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+:root {
+  --bg:#020b18;--panel:rgba(0,255,255,0.03);--border:rgba(0,255,255,0.15);
+  --cyan:#00f5ff;--blue:#0066ff;--purple:#7b00ff;--green:#00ff9d;--orange:#ff6b00;
+  --text:#c8eeff;--muted:#3a6080;--glow:0 0 20px rgba(0,245,255,0.3);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);font-family:'Share Tech Mono',monospace;color:var(--text);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,245,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,0.04) 1px,transparent 1px);background-size:40px 40px;animation:gridShift 20s linear infinite;pointer-events:none;z-index:0;}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.12) 2px,rgba(0,0,0,0.12) 4px);pointer-events:none;z-index:1;}
+@keyframes gridShift{100%{transform:translate(40px,40px);}}
+.app{position:relative;z-index:2;max-width:1100px;margin:0 auto;padding:20px;}
+
+
+
+header{display:flex;align-items:center;justify-content:space-between;padding:20px 0 30px;border-bottom:1px solid var(--border);margin-bottom:30px;}
+.logo{font-family:'Orbitron',monospace;font-size:1.4rem;font-weight:900;letter-spacing:3px;color:var(--cyan);text-shadow:var(--glow);}
+.logo span{color:var(--purple);}
+.status-bar{display:flex;align-items:center;gap:8px;font-size:0.7rem;color:var(--green);}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 6px var(--green);}50%{opacity:0.4;box-shadow:none;}}
+
+.twin-section{display:grid;grid-template-columns:260px 1fr;gap:20px;margin-bottom:24px;}
+@media(max-width:700px){.twin-section{grid-template-columns:1fr;}}
+
+.avatar-card{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:16px;position:relative;overflow:hidden;}
+.avatar-card::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:conic-gradient(from 0deg,transparent 340deg,rgba(0,245,255,0.05) 360deg);animation:rotate 8s linear infinite;}
+@keyframes rotate{to{transform:rotate(360deg);}}
+.avatar-ring{position:relative;width:110px;height:110px;}
+.avatar-ring svg{position:absolute;inset:0;animation:spin 6s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.avatar-inner{position:absolute;inset:12px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#0a2a4a,#020b18);border:1px solid rgba(0,245,255,0.3);display:flex;align-items:center;justify-content:center;font-size:2.5rem;}
+.twin-name{font-family:'Orbitron',monospace;font-size:1rem;color:var(--cyan);letter-spacing:2px;text-align:center;}
+.twin-level{font-size:0.65rem;color:var(--muted);letter-spacing:1px;}
+.xp-bar-wrap{width:100%;}
+.xp-label{display:flex;justify-content:space-between;font-size:0.6rem;color:var(--muted);margin-bottom:6px;}
+.xp-bar{height:4px;background:rgba(0,245,255,0.1);border-radius:2px;overflow:hidden;}
+.xp-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--blue));box-shadow:0 0 8px var(--cyan);border-radius:2px;transition:width 1s ease;}
+.stats-mini{width:100%;display:flex;flex-direction:column;gap:8px;}
+.stat-row{display:flex;justify-content:space-between;font-size:0.65rem;}
+.stat-row span:first-child{color:var(--muted);}
+.stat-row span:last-child{color:var(--cyan);}
+
+.main-panel{background:var(--panel);border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+.tabs{display:flex;border-bottom:1px solid var(--border);}
+.tab{flex:1;padding:14px 8px;background:none;border:none;color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.62rem;letter-spacing:1.5px;cursor:pointer;transition:all 0.2s;border-right:1px solid var(--border);text-transform:uppercase;}
+.tab:last-child{border-right:none;}
+.tab.active{color:var(--cyan);background:rgba(0,245,255,0.06);box-shadow:inset 0 -2px 0 var(--cyan);}
+.tab:hover:not(.active){color:var(--text);background:rgba(255,255,255,0.02);}
+.tab-content{padding:20px;display:none;}
+.tab-content.active{display:block;}
+.section-title{font-family:'Orbitron',monospace;font-size:0.7rem;letter-spacing:3px;color:var(--cyan);margin-bottom:16px;opacity:0.7;}
+
+.topics-grid{display:flex;flex-direction:column;gap:10px;}
+.topic-item{display:flex;align-items:center;gap:14px;padding:12px 16px;background:rgba(0,0,0,0.2);border:1px solid rgba(0,245,255,0.07);border-radius:3px;cursor:pointer;transition:all 0.2s;}
+.topic-item:hover{border-color:rgba(0,245,255,0.25);background:rgba(0,245,255,0.04);}
+.topic-item.completed{border-color:rgba(0,255,157,0.2);}
+.topic-item.in-progress{border-color:rgba(0,102,255,0.3);}
+.topic-item.locked{opacity:0.4;cursor:not-allowed;}
+.topic-icon{font-size:1.2rem;width:28px;text-align:center;}
+.topic-info{flex:1;}
+.topic-name{font-size:0.8rem;color:var(--text);margin-bottom:4px;}
+.topic-sub{font-size:0.6rem;color:var(--muted);}
+.topic-progress{width:80px;text-align:right;}
+.topic-pct{font-size:0.7rem;margin-bottom:4px;}
+.topic-bar{height:3px;background:rgba(255,255,255,0.05);border-radius:2px;}
+.topic-bar-fill{height:100%;border-radius:2px;transition:width 1.2s ease;}
+.completed .topic-bar-fill{background:var(--green);box-shadow:0 0 6px var(--green);}
+.in-progress .topic-bar-fill{background:var(--blue);box-shadow:0 0 6px var(--blue);}
+.not-started .topic-bar-fill{background:var(--muted);}
+.topic-badge{font-size:0.55rem;padding:2px 6px;border-radius:2px;letter-spacing:1px;}
+.badge-done{background:rgba(0,255,157,0.1);color:var(--green);border:1px solid rgba(0,255,157,0.3);}
+.badge-active{background:rgba(0,102,255,0.1);color:#5599ff;border:1px solid rgba(0,102,255,0.3);}
+.badge-lock{background:rgba(255,255,255,0.03);color:var(--muted);border:1px solid rgba(255,255,255,0.05);}
+
+.log-section{display:flex;flex-direction:column;gap:14px;}
+.field-group{display:flex;flex-direction:column;gap:6px;}
+.field-label{font-size:0.6rem;color:var(--muted);letter-spacing:2px;}
+.sci-input,.sci-select,.sci-textarea{background:rgba(0,0,0,0.4);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:0.8rem;padding:10px 14px;border-radius:3px;outline:none;width:100%;transition:border-color 0.2s;}
+.sci-input:focus,.sci-select:focus,.sci-textarea:focus{border-color:var(--cyan);box-shadow:0 0 10px rgba(0,245,255,0.1);}
+.sci-select option{background:#020b18;}
+.sci-textarea{resize:vertical;min-height:80px;}
+.slider-group{display:flex;align-items:center;gap:12px;}
+.sci-slider{-webkit-appearance:none;flex:1;height:3px;background:rgba(0,245,255,0.1);border-radius:2px;outline:none;}
+.sci-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--cyan);cursor:pointer;box-shadow:0 0 8px var(--cyan);}
+.slider-val{font-size:0.8rem;color:var(--cyan);min-width:30px;text-align:right;}
+.btn-primary{background:linear-gradient(90deg,rgba(0,245,255,0.15),rgba(0,102,255,0.15));border:1px solid var(--cyan);color:var(--cyan);font-family:'Orbitron',monospace;font-size:0.65rem;letter-spacing:3px;padding:12px 24px;cursor:pointer;border-radius:3px;transition:all 0.2s;text-transform:uppercase;position:relative;overflow:hidden;width:100%;}
+.btn-primary:hover{box-shadow:var(--glow);}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed;}
+
+
+/* ONBOARDING */
+.onboard-overlay{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
+.onboard-box{background:rgba(0,10,25,0.95);border:1px solid var(--border);border-radius:8px;padding:36px;max-width:700px;width:100%;position:relative;margin:auto;}
+.onboard-title{font-family:'Orbitron',monospace;font-size:1.1rem;color:var(--cyan);letter-spacing:3px;margin-bottom:6px;text-shadow:var(--glow);}
+.onboard-sub{font-size:0.7rem;color:var(--muted);margin-bottom:28px;letter-spacing:1px;}
+.topic-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:24px;}
+.topic-pick{background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:4px;padding:14px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:10px;}
+.topic-pick:hover{border-color:var(--cyan);background:rgba(0,245,255,0.04);}
+.topic-pick.selected{border-color:var(--cyan);background:rgba(0,245,255,0.08);box-shadow:0 0 10px rgba(0,245,255,0.1);}
+.topic-pick-icon{font-size:1.4rem;flex-shrink:0;}
+.topic-pick-name{font-size:0.72rem;color:var(--text);line-height:1.4;}
+.topic-pick-sub{font-size:0.58rem;color:var(--muted);margin-top:2px;}
+.goal-row{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+.goal-btn{background:rgba(0,0,0,0.3);border:1px solid var(--border);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.62rem;padding:8px 14px;border-radius:3px;cursor:pointer;transition:all 0.2s;letter-spacing:1px;}
+.goal-btn:hover{border-color:var(--purple);color:#a855f7;}
+.goal-btn.selected{border-color:var(--purple);color:#a855f7;background:rgba(123,0,255,0.1);}
+.onboard-hint{font-size:0.6rem;color:var(--muted);margin-bottom:16px;}
+.btn-start{background:linear-gradient(90deg,rgba(0,245,255,0.15),rgba(0,102,255,0.15));border:1px solid var(--cyan);color:var(--cyan);font-family:'Orbitron',monospace;font-size:0.7rem;letter-spacing:3px;padding:14px 32px;cursor:pointer;border-radius:3px;transition:all 0.2s;width:100%;}
+.btn-start:hover{box-shadow:var(--glow);}
+.btn-start:disabled{opacity:0.3;cursor:not-allowed;}
+.select-count{font-size:0.6rem;color:var(--muted);text-align:right;margin-bottom:8px;}
+
+/* AI PANEL */
+.ai-panel{display:flex;flex-direction:column;gap:16px;}
+.ai-input-row{display:flex;gap:10px;}
+.ai-input-row .sci-input{flex:1;}
+.btn-ask{background:linear-gradient(90deg,rgba(123,0,255,0.2),rgba(0,102,255,0.2));border:1px solid var(--purple);color:#a855f7;font-family:'Orbitron',monospace;font-size:0.6rem;letter-spacing:2px;padding:10px 18px;cursor:pointer;border-radius:3px;transition:all 0.2s;white-space:nowrap;}
+.btn-ask:hover{box-shadow:0 0 15px rgba(123,0,255,0.3);}
+.btn-ask:disabled{opacity:0.4;cursor:not-allowed;}
+.quick-prompts{display:flex;gap:8px;flex-wrap:wrap;}
+.qp{background:rgba(0,245,255,0.04);border:1px solid var(--border);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.6rem;padding:6px 12px;border-radius:2px;cursor:pointer;transition:all 0.2s;letter-spacing:1px;}
+.qp:hover{border-color:var(--cyan);color:var(--cyan);}
+.ai-response{background:rgba(0,0,0,0.3);border:1px solid rgba(123,0,255,0.2);border-radius:4px;padding:16px;min-height:140px;position:relative;}
+.ai-response-label{font-size:0.55rem;color:var(--purple);letter-spacing:3px;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.ai-response-label::after{content:'';flex:1;height:1px;background:rgba(123,0,255,0.2);}
+.ai-response-body{font-size:0.78rem;line-height:1.8;color:var(--text);white-space:pre-wrap;}
+.ai-response-body.empty{color:var(--muted);font-size:0.7rem;}
+.typing-cursor{display:inline-block;width:8px;height:14px;background:var(--cyan);animation:blink 0.8s step-end infinite;vertical-align:middle;margin-left:2px;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+.loading-dots span{animation:dot-fade 1.2s ease-in-out infinite;}
+.loading-dots span:nth-child(2){animation-delay:0.2s;}
+.loading-dots span:nth-child(3){animation-delay:0.4s;}
+@keyframes dot-fade{0%,80%,100%{opacity:0.2;}40%{opacity:1;}}
+.context-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px;}
+.chip{font-size:0.55rem;padding:3px 8px;border-radius:2px;letter-spacing:1px;}
+.chip-green{background:rgba(0,255,157,0.08);color:var(--green);border:1px solid rgba(0,255,157,0.2);}
+.chip-blue{background:rgba(0,102,255,0.08);color:#5599ff;border:1px solid rgba(0,102,255,0.2);}
+.chip-orange{background:rgba(255,107,0,0.08);color:var(--orange);border:1px solid rgba(255,107,0,0.2);}
+
+
+/* CHAT TAB */
+.chat-wrap{display:flex;flex-direction:column;height:420px;}
+.chat-messages{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding-bottom:12px;scrollbar-width:thin;scrollbar-color:var(--muted) transparent;}
+.chat-messages::-webkit-scrollbar{width:4px;}
+.chat-messages::-webkit-scrollbar-thumb{background:var(--muted);border-radius:2px;}
+.msg{max-width:82%;padding:12px 16px;border-radius:4px;font-size:0.78rem;line-height:1.7;white-space:pre-wrap;}
+.msg.user{align-self:flex-end;background:rgba(0,102,255,0.15);border:1px solid rgba(0,102,255,0.3);color:var(--text);}
+.msg.ai{align-self:flex-start;background:rgba(123,0,255,0.08);border:1px solid rgba(123,0,255,0.2);color:var(--text);}
+.msg.ai .msg-label{font-size:0.55rem;color:var(--purple);letter-spacing:2px;margin-bottom:6px;}
+.msg.user .msg-label{font-size:0.55rem;color:#5599ff;letter-spacing:2px;margin-bottom:6px;}
+.chat-input-row{display:flex;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.chat-input-row .sci-input{flex:1;}
+.btn-send{background:linear-gradient(90deg,rgba(123,0,255,0.2),rgba(0,102,255,0.2));border:1px solid var(--purple);color:#a855f7;font-family:'Orbitron',monospace;font-size:0.6rem;letter-spacing:2px;padding:10px 18px;cursor:pointer;border-radius:3px;transition:all 0.2s;white-space:nowrap;}
+.btn-send:hover{box-shadow:0 0 15px rgba(123,0,255,0.3);}
+.btn-send:disabled{opacity:0.4;cursor:not-allowed;}
+.chat-typing{align-self:flex-start;padding:10px 16px;background:rgba(123,0,255,0.08);border:1px solid rgba(123,0,255,0.2);border-radius:4px;}
+.chat-suggestions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.cs{background:rgba(0,245,255,0.04);border:1px solid var(--border);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.58rem;padding:5px 10px;border-radius:2px;cursor:pointer;transition:all 0.2s;}
+.cs:hover{border-color:var(--cyan);color:var(--cyan);}
+
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:24px;}
+@media(max-width:600px){
+/* CHAT TAB */
+.chat-wrap{display:flex;flex-direction:column;height:420px;}
+.chat-messages{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding-bottom:12px;scrollbar-width:thin;scrollbar-color:var(--muted) transparent;}
+.chat-messages::-webkit-scrollbar{width:4px;}
+.chat-messages::-webkit-scrollbar-thumb{background:var(--muted);border-radius:2px;}
+.msg{max-width:82%;padding:12px 16px;border-radius:4px;font-size:0.78rem;line-height:1.7;white-space:pre-wrap;}
+.msg.user{align-self:flex-end;background:rgba(0,102,255,0.15);border:1px solid rgba(0,102,255,0.3);color:var(--text);}
+.msg.ai{align-self:flex-start;background:rgba(123,0,255,0.08);border:1px solid rgba(123,0,255,0.2);color:var(--text);}
+.msg.ai .msg-label{font-size:0.55rem;color:var(--purple);letter-spacing:2px;margin-bottom:6px;}
+.msg.user .msg-label{font-size:0.55rem;color:#5599ff;letter-spacing:2px;margin-bottom:6px;}
+.chat-input-row{display:flex;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.chat-input-row .sci-input{flex:1;}
+.btn-send{background:linear-gradient(90deg,rgba(123,0,255,0.2),rgba(0,102,255,0.2));border:1px solid var(--purple);color:#a855f7;font-family:'Orbitron',monospace;font-size:0.6rem;letter-spacing:2px;padding:10px 18px;cursor:pointer;border-radius:3px;transition:all 0.2s;white-space:nowrap;}
+.btn-send:hover{box-shadow:0 0 15px rgba(123,0,255,0.3);}
+.btn-send:disabled{opacity:0.4;cursor:not-allowed;}
+.chat-typing{align-self:flex-start;padding:10px 16px;background:rgba(123,0,255,0.08);border:1px solid rgba(123,0,255,0.2);border-radius:4px;}
+.chat-suggestions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.cs{background:rgba(0,245,255,0.04);border:1px solid var(--border);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.58rem;padding:5px 10px;border-radius:2px;cursor:pointer;transition:all 0.2s;}
+.cs:hover{border-color:var(--cyan);color:var(--cyan);}
+
+.stats-row{grid-template-columns:repeat(2,1fr);}}
+.stat-card{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:16px;text-align:center;}
+.stat-num{font-family:'Orbitron',monospace;font-size:1.6rem;font-weight:700;color:var(--cyan);text-shadow:var(--glow);display:block;margin-bottom:4px;}
+.stat-label{font-size:0.58rem;color:var(--muted);letter-spacing:2px;}
+
+.activity-list{display:flex;flex-direction:column;}
+.activity-item{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid rgba(0,245,255,0.05);}
+.activity-item:last-child{border-bottom:none;}
+.act-time{font-size:0.6rem;color:var(--muted);min-width:70px;padding-top:2px;}
+.act-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+.act-body{flex:1;}
+.act-title{font-size:0.78rem;color:var(--text);margin-bottom:2px;}
+.act-sub{font-size:0.6rem;color:var(--muted);}
+
+.toast{position:fixed;bottom:30px;right:30px;background:rgba(0,20,40,0.95);border:1px solid var(--green);color:var(--green);font-family:'Share Tech Mono',monospace;font-size:0.75rem;padding:12px 20px;border-radius:3px;box-shadow:0 0 20px rgba(0,255,157,0.2);transform:translateY(80px);opacity:0;transition:all 0.3s;z-index:100;letter-spacing:1px;}
+.toast.show{transform:translateY(0);opacity:1;}
+</style>
+</head>
+<body>
+
+<!-- ONBOARDING OVERLAY -->
+<div class="onboard-overlay" id="onboard-overlay">
+  <div class="onboard-box">
+    <div class="onboard-title">INITIALIZE TWIN</div>
+    <div class="onboard-sub">// SELECT TOPICS YOU WANT TO LEARN — AI BUILDS YOUR ROADMAP</div>
+
+    <div class="field-label" style="margin-bottom:12px;">// PICK YOUR GOAL</div>
+    <div class="goal-row" id="goal-row">
+      <button class="goal-btn" onclick="selectGoal(this,'Get a job in AI')">Get a job in AI</button>
+      <button class="goal-btn" onclick="selectGoal(this,'Build AI projects')">Build AI projects</button>
+      <button class="goal-btn" onclick="selectGoal(this,'Research / Academia')">Research / Academia</button>
+      <button class="goal-btn" onclick="selectGoal(this,'Personal curiosity')">Personal curiosity</button>
+    </div>
+
+    <div class="field-label" style="margin-bottom:12px;">// CHOOSE TOPICS (pick at least 2)</div>
+    <div class="select-count" id="select-count">0 selected</div>
+    <div class="topic-grid" id="topic-grid"></div>
+
+    <div class="onboard-hint">AI will create a personalized study order based on your selections.</div>
+    <button class="btn-start" id="btn-start" onclick="startTwin()" disabled>INITIALIZE MY TWIN ›</button>
+  </div>
+</div>
+
+<div class="app" id="main-app" style="display:none">
+
+  <header>
+    <div class="logo">TWIN<span>::</span>AI</div>
+    <div style="font-family:Orbitron,monospace;font-size:0.6rem;letter-spacing:4px;color:var(--muted)">GROQ-POWERED v3.0</div>
+    <div class="status-bar"><div class="pulse"></div><span id="header-status">TWIN ACTIVE</span></div>
+  </header>
+
+  <div class="twin-section">
+    <div class="avatar-card">
+      <div class="avatar-ring">
+        <svg viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="55" cy="55" r="50" fill="none" stroke="rgba(0,245,255,0.15)" stroke-width="1"/>
+          <circle cx="55" cy="55" r="50" fill="none" stroke="#00f5ff" stroke-width="1.5" stroke-dasharray="8 6" stroke-linecap="round"/>
+          <circle cx="55" cy="55" r="42" fill="none" stroke="rgba(123,0,255,0.4)" stroke-width="1" stroke-dasharray="3 9"/>
+        </svg>
+        <div class="avatar-inner">🤖</div>
+      </div>
+      <div>
+        <div class="twin-name">LEARNER_01</div>
+        <div class="twin-level" id="twin-level-label">// LEVEL 4 — INTERMEDIATE</div>
+      </div>
+      <div class="xp-bar-wrap">
+        <div class="xp-label"><span>XP</span><span id="xp-text">1240 / 2000</span></div>
+        <div class="xp-bar"><div class="xp-fill" id="xp-fill" style="width:62%"></div></div>
+      </div>
+      <div class="stats-mini">
+        <div class="stat-row"><span>STREAK</span><span id="streak">🔥 7 days</span></div>
+        <div class="stat-row"><span>FOCUS</span><span id="focus-topic">Neural Nets</span></div>
+        <div class="stat-row"><span>TOPICS DONE</span><span id="topics-done">5 / 12</span></div>
+        <div class="stat-row"><span>AVG MASTERY</span><span id="avg-mastery">67%</span></div>
+      </div>
+    </div>
+
+    <div class="main-panel">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('progress',this)">// PROGRESS</button>
+        <button class="tab" onclick="switchTab('log',this)">// LOG SESSION</button>
+        <button class="tab" onclick="switchTab('ai',this)">✦ AI ADVISOR</button>
+        <button class="tab" onclick="switchTab('chat',this)">💬 CHAT</button>
+        <button class="tab" onclick="switchTab('activity',this)">// ACTIVITY</button>
+      </div>
+
+      <!-- PROGRESS -->
+      <div class="tab-content active" id="tab-progress">
+        <div class="section-title">KNOWLEDGE NODES</div>
+        <div class="topics-grid" id="topics-list"></div>
+      </div>
+
+      <!-- LOG SESSION -->
+      <div class="tab-content" id="tab-log">
+        <div class="section-title">LOG LEARNING SESSION</div>
+        <div class="log-section">
+          <div class="field-group">
+            <div class="field-label">// TOPIC</div>
+            <select class="sci-select" id="log-topic" onchange="handleTopicChange(this)">
+              <option value="__custom__">✏ Type my own topic...</option>
+              <option>Machine Learning Fundamentals</option>
+              <option>Neural Networks</option>
+              <option>Transformers &amp; Attention</option>
+              <option>Prompt Engineering</option>
+              <option>Reinforcement Learning</option>
+              <option>Computer Vision</option>
+            </select>
+            <input class="sci-input" id="custom-topic" placeholder="e.g. GANs, BERT fine-tuning, LangChain..." style="display:none;margin-top:8px;">
+          </div>
+          <div class="field-group">
+            <div class="field-label">// DURATION (MINUTES)</div>
+            <div class="slider-group">
+              <input type="range" class="sci-slider" id="log-duration" min="5" max="180" value="45" oninput="document.getElementById('dur-val').textContent=this.value">
+              <div class="slider-val" id="dur-val">45</div>
+            </div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">// SELF-ASSESSED MASTERY</div>
+            <div class="slider-group">
+              <input type="range" class="sci-slider" id="log-mastery" min="0" max="100" value="60" oninput="document.getElementById('mas-val').textContent=this.value+'%'">
+              <div class="slider-val" id="mas-val">60%</div>
+            </div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">// NOTES</div>
+            <textarea class="sci-textarea" id="log-notes" placeholder="What did you learn? Key takeaways..."></textarea>
+          </div>
+          <button class="btn-primary" onclick="logSession()">SYNC TO TWIN ›</button>
+
+          <div style="margin-top:10px;display:flex;gap:10px;">
+            <button class="btn-primary" style="background:linear-gradient(90deg,rgba(123,0,255,0.15),rgba(0,102,255,0.15));border-color:var(--purple);color:#a855f7;" onclick="explainTopic()">✦ EXPLAIN THIS TOPIC</button>
+          </div>
+
+          <div id="explain-box" style="display:none;margin-top:14px;background:rgba(0,0,0,0.3);border:1px solid rgba(123,0,255,0.2);border-radius:4px;padding:16px;">
+            <div style="font-size:0.55rem;color:var(--purple);letter-spacing:3px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">AI EXPLANATION <span style="flex:1;height:1px;background:rgba(123,0,255,0.2);display:block;"></span></div>
+            <div id="explain-body" style="font-size:0.78rem;line-height:1.8;color:var(--text);white-space:pre-wrap;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI ADVISOR -->
+      <div class="tab-content" id="tab-ai">
+        <div class="section-title">GROQ AI ADVISOR</div>
+        <div class="ai-panel">
+          <div>
+            <div class="field-label" style="margin-bottom:8px;">// YOUR CURRENT PROGRESS CONTEXT</div>
+            <div class="context-chips" id="context-chips"></div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">// QUICK PROMPTS</div>
+            <div class="quick-prompts">
+              <button class="qp" onclick="setPrompt('What should I study next based on my current progress and topics?')">📍 What to study next?</button>
+              <button class="qp" onclick="setPrompt('Where are my weakest areas and give me 3 specific ways to improve them?')">⚠ Weakest areas?</button>
+              <button class="qp" onclick="setPrompt('Give me a 2-week study plan based on my current topics and mastery levels.')">📅 2-week plan</button>
+              <button class="qp" onclick="setPrompt('Quiz me with 5 MCQ questions on the topics I have studied so far.')">🧠 Quiz me</button>
+              <button class="qp" onclick="setPrompt('What AI projects can I build right now with my current knowledge level?')">🚀 Project ideas</button>
+              <button class="qp" onclick="setPrompt('Explain my current in-progress topics in simple terms with real world examples.')">💡 Explain my topics</button>
+              <button class="qp" onclick="setPrompt('What skills am I missing to get an AI internship based on my progress?')">💼 Internship gaps</button>
+              <button class="qp" onclick="setPrompt('Give me 3 tricky interview questions based on topics I have completed.')">🎯 Interview prep</button>
+              <button class="qp" onclick="setPrompt('How long will it take me to complete all my topics at my current pace?')">⏱ Time estimate</button>
+              <button class="qp" onclick="setPrompt('Give me one coding challenge I can do today based on my current level.')">💻 Coding challenge</button>
+            </div>
+          </div>
+          <div class="ai-input-row">
+            <input class="sci-input" id="ai-input" placeholder="Ask your AI advisor anything..." onkeydown="if(event.key==='Enter')askAI()">
+            <button class="btn-ask" id="ask-btn" onclick="askAI()">ASK ›</button>
+          </div>
+          <div class="ai-response">
+            <div class="ai-response-label">GROQ ADVISOR</div>
+            <div class="ai-response-body empty" id="ai-response-body">Server is running — ask anything!, then ask anything about your learning journey. Grok will analyze your full progress profile and give personalized guidance.</div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- CHAT -->
+      <div class="tab-content" id="tab-chat">
+        <div class="section-title">AI LEARNING CHAT</div>
+        <div class="chat-suggestions" id="chat-suggestions">
+          <button class="cs" onclick="chatSuggest('Explain my weakest topic in simple terms')">Explain my weakest topic</button>
+          <button class="cs" onclick="chatSuggest('Give me a quiz on what I have studied so far')">Quiz me</button>
+          <button class="cs" onclick="chatSuggest('What should I focus on today?')">What to focus today?</button>
+          <button class="cs" onclick="chatSuggest('Give me a real world project idea based on my progress')">Project idea</button>
+          <button class="cs" onclick="chatSuggest('Explain this like I am a complete beginner')">Explain like beginner</button>
+        </div>
+        <div class="chat-wrap">
+          <div class="chat-messages" id="chat-messages">
+            <div class="msg ai">
+              <div class="msg-label">GROQ ADVISOR</div>
+              Hey! I'm your personal AI learning buddy 🤖 I know your progress, your topics and your goals. Ask me anything — I'll explain concepts, quiz you, suggest projects or just answer questions based on how you learn best!
+            </div>
+          </div>
+          <div class="chat-input-row">
+            <input class="sci-input" id="chat-input" placeholder="Ask anything about AI, your topics, concepts..." onkeydown="if(event.key==='Enter' && !event.shiftKey) sendChat()">
+            <button class="btn-send" id="chat-send-btn" onclick="sendChat()">SEND ›</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACTIVITY -->
+      <div class="tab-content" id="tab-activity">
+        <div class="section-title">SESSION HISTORY</div>
+        <div class="activity-list" id="activity-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card"><span class="stat-num" id="stat-hours">24h</span><div class="stat-label">TOTAL STUDY TIME</div></div>
+    <div class="stat-card"><span class="stat-num" id="stat-sessions">18</span><div class="stat-label">SESSIONS LOGGED</div></div>
+    <div class="stat-card"><span class="stat-num" id="stat-mastery">67%</span><div class="stat-label">AVG MASTERY</div></div>
+    <div class="stat-card"><span class="stat-num" id="stat-streak">7</span><div class="stat-label">DAY STREAK</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── API Key ────────────────────────────────────────────────────────────────
+// API handled by server.js
+
+// ── State ──────────────────────────────────────────────────────────────────
+let state = {
+  xp:1240,xpMax:2000,level:4,streak:7,sessions:18,totalMins:1440,
+  topics:[
+    {name:'Python for AI',icon:'🐍',sub:'Numpy · Pandas · Matplotlib',pct:100,status:'completed'},
+    {name:'ML Fundamentals',icon:'📐',sub:'Regression · Classification · Clustering',pct:90,status:'completed'},
+    {name:'Neural Networks',icon:'🧠',sub:'Backprop · Activations · Optimizers',pct:70,status:'in-progress'},
+    {name:'Transformers & Attention',icon:'🔮',sub:'Self-attention · BERT · GPT',pct:45,status:'in-progress'},
+    {name:'Prompt Engineering',icon:'💬',sub:'Zero-shot · Few-shot · Chain-of-thought',pct:30,status:'in-progress'},
+    {name:'Computer Vision',icon:'👁️',sub:'CNNs · Object Detection · Segmentation',pct:10,status:'not-started'},
+    {name:'Reinforcement Learning',icon:'🎮',sub:'MDPs · Q-Learning · PPO',pct:0,status:'not-started'},
+    {name:'LLM Fine-tuning',icon:'⚙️',sub:'LoRA · RLHF · Instruction tuning',pct:0,status:'not-started'},
+  ],
+  activity:[
+    {time:'Today 09:14',title:'Neural Networks',sub:'45 min · Mastery +12% · +80 XP',color:'#0066ff'},
+    {time:'Yesterday',title:'Transformers & Attention',sub:'60 min · Mastery +8% · +100 XP',color:'#7b00ff'},
+    {time:'Mar 17',title:'Prompt Engineering',sub:'30 min · Mastery +5% · +50 XP',color:'#00f5ff'},
+    {time:'Mar 16',title:'ML Fundamentals',sub:'90 min · Mastery +10% · +140 XP',color:'#00ff9d'},
+  ]
+};
+
+// ── API Key (hardcoded) ────────────────────────────────────────────────────
+const apiKey = 'sk-ant-api03-PASTE-YOUR-ANTHROPIC-KEY-HERE';
+
+// ── Build context for Claude ───────────────────────────────────────────────
+function buildContext() {
+  const completed = state.topics.filter(t=>t.status==='completed').map(t=>t.name);
+  const inProgress = state.topics.filter(t=>t.status==='in-progress').map(t=>`${t.name} (${t.pct}%)`);
+  const locked = state.topics.filter(t=>t.status==='locked').map(t=>t.name);
+  const unlocked = state.topics.filter(t=>t.status!=='locked');
+  const avg = Math.round(unlocked.reduce((a,t)=>a+t.pct,0)/unlocked.length);
+  return `You are an expert AI learning advisor embedded in a student's digital twin system. Here is the learner's current data:
+
+LEVEL: ${state.level} (Intermediate)
+XP: ${state.xp}/${state.xpMax}
+STREAK: ${state.streak} days
+SESSIONS LOGGED: ${state.sessions}
+TOTAL STUDY TIME: ${Math.round(state.totalMins/60)} hours
+AVERAGE MASTERY: ${avg}%
+COMPLETED TOPICS (${completed.length}): ${completed.join(', ')||'none'}
+IN PROGRESS: ${inProgress.join(', ')||'none'}
+NOT YET UNLOCKED: ${locked.join(', ')||'none'}
+
+Give concise, actionable, personalized advice based on this data. Use a clear technical tone. Format with short paragraphs. Maximum 250 words.`;
+}
+
+// ── AI Advisor ─────────────────────────────────────────────────────────────
+function setPrompt(text) {
+  document.getElementById('ai-input').value = text;
+  document.getElementById('ai-input').focus();
+}
+
+async function askAI() {
+  const input = document.getElementById('ai-input');
+  const question = input.value.trim();
+  if (!question) return;
+
+  const btn = document.getElementById('ask-btn');
+  const body = document.getElementById('ai-response-body');
+  btn.disabled = true;
+  input.disabled = true;
+  body.className = 'ai-response-body';
+  body.innerHTML = `<span class="loading-dots"><span>●</span><span>●</span><span>●</span></span> Analyzing your learning profile...`;
+
+  try {
+    const res = await fetch('http://localhost:4000/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: buildContext() },
+          { role: 'user', content: question }
+        ]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({error:{message:'Server error'}}));
+      throw new Error(err.error?.message || 'HTTP ' + res.status);
+    }
+
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content || 'No response received.';
+
+    // Typewriter effect
+    body.innerHTML = '';
+    body.className = 'ai-response-body';
+    let i = 0;
+    const cursor = document.createElement('span');
+    cursor.className = 'typing-cursor';
+    body.appendChild(cursor);
+    const interval = setInterval(() => {
+      if (i < text.length) {
+        body.insertBefore(document.createTextNode(text[i]), cursor);
+        i++;
+      } else {
+        clearInterval(interval);
+        cursor.remove();
+      }
+    }, 12);
+
+    showToast('GROQ ADVISOR RESPONDED ✓');
+  } catch (err) {
+    body.innerHTML = `<span style="color:var(--orange)">⚠ ERROR: ${err.message}</span>\n\nMake sure server.js is running: node server.js`;
+  }
+
+  btn.disabled = false;
+  input.disabled = false;
+  input.value = '';
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  el.classList.add('active');
+  if (name === 'ai') renderContextChips();
+}
+
+function renderContextChips() {
+  const chips = document.getElementById('context-chips');
+  const completed = state.topics.filter(t => t.status === 'completed').length;
+  const inProgress = state.topics.filter(t => t.status === 'in-progress');
+  const unlocked = state.topics.filter(t => t.status !== 'locked');
+  const avg = Math.round(unlocked.reduce((a, t) => a + t.pct, 0) / unlocked.length);
+  chips.innerHTML = `
+    <div class="chip chip-green">✓ ${completed} COMPLETED</div>
+    ${inProgress.map(t => `<div class="chip chip-blue">⟳ ${t.name.split(' ')[0]} ${t.pct}%</div>`).join('')}
+    <div class="chip chip-orange">AVG ${avg}% MASTERY</div>
+    <div class="chip chip-green">🔥 ${state.streak}d STREAK</div>
+  `;
+}
+
+// ── Log session ────────────────────────────────────────────────────────────
+function logSession() {
+  const sel = document.getElementById('log-topic');
+  const topic = sel.value === '__custom__'
+    ? (document.getElementById('custom-topic').value.trim() || 'Custom Topic')
+    : sel.value;
+  const mins = parseInt(document.getElementById('log-duration').value);
+  const mastery = parseInt(document.getElementById('log-mastery').value);
+  const t = state.topics.find(x => x.name.toLowerCase().includes(topic.split(' ')[0].toLowerCase()));
+  if (t && t.status !== 'locked') {
+    t.pct = Math.min(100, Math.round(t.pct * 0.7 + mastery * 0.3));
+    if (t.pct >= 90) t.status = 'completed';
+    else if (t.pct > 0) t.status = 'in-progress';
+  }
+  const xpGain = Math.round(mins * 1.5 + mastery * 0.8);
+  state.xp = Math.min(state.xpMax, state.xp + xpGain);
+  state.sessions++;
+  state.totalMins += mins;
+  if (state.xp >= state.xpMax) { state.xp -= state.xpMax; state.level++; state.xpMax = Math.round(state.xpMax * 1.4); }
+  const now = new Date();
+  state.activity.unshift({
+    time: `Today ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`,
+    title: topic,
+    sub: `${mins} min · Mastery ${mastery}% · +${xpGain} XP`,
+    color: '#00f5ff'
+  });
+  render();
+  showToast(`+${xpGain} XP SYNCED ✓`);
+  document.getElementById('log-notes').value = '';
+}
+
+// ── Topic toggle ───────────────────────────────────────────────────────────
+function handleTopicChange(sel) {
+  const customInput = document.getElementById('custom-topic');
+  if (sel.value === '__custom__') {
+    customInput.style.display = 'block';
+    customInput.focus();
+  } else {
+    customInput.style.display = 'none';
+  }
+}
+
+// ── Explain Topic ──────────────────────────────────────────────────────────
+async function explainTopic() {
+  const sel = document.getElementById('log-topic');
+  const topic = sel.value === '__custom__'
+    ? (document.getElementById('custom-topic').value.trim() || 'AI')
+    : sel.value;
+
+  const box = document.getElementById('explain-box');
+  const body = document.getElementById('explain-body');
+  box.style.display = 'block';
+  body.innerHTML = '<span class="loading-dots"><span>●</span><span>●</span><span>●</span></span> Generating explanation...';
+
+  try {
+    const res = await fetch('http://localhost:4000/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: 'You are an expert AI tutor. Explain topics clearly and concisely with examples. Use simple language. Max 200 words.' },
+          { role: 'user', content: `Explain "${topic}" in simple terms with a practical example. Include: what it is, why it matters, and one real-world use case.` }
+        ]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({error:{message:'Server error'}}));
+      throw new Error(err.error?.message || 'HTTP ' + res.status);
+    }
+
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content || 'No response.';
+
+    body.innerHTML = '';
+    let i = 0;
+    const cursor = document.createElement('span');
+    cursor.className = 'typing-cursor';
+    body.appendChild(cursor);
+    const interval = setInterval(() => {
+      if (i < text.length) {
+        body.insertBefore(document.createTextNode(text[i]), cursor);
+        i++;
+      } else {
+        clearInterval(interval);
+        cursor.remove();
+      }
+    }, 12);
+
+  } catch(err) {
+    body.innerHTML = '<span style="color:var(--orange)">⚠ ' + err.message + '</span><br><br>Make sure server.js is running: node server.js';
+  }
+}
+
+
+// ── Chat ───────────────────────────────────────────────────────────────────
+let chatHistory = [];
+
+function buildChatSystem() {
+  const completed = state.topics.filter(t=>t.status==='completed').map(t=>t.name);
+  const inProgress = state.topics.filter(t=>t.status==='in-progress').map(t=>`${t.name} (${t.pct}%)`);
+  const unlocked = state.topics.filter(t=>t.status!=='locked');
+  const avg = Math.round(unlocked.reduce((a,t)=>a+t.pct,0)/unlocked.length);
+  return `You are a friendly, adaptive AI learning buddy for a student learning AI/ML.
+
+STUDENT PROFILE:
+- Level: ${state.level}, XP: ${state.xp}/${state.xpMax}
+- Streak: ${state.streak} days
+- Completed: ${completed.join(', ')||'none'}
+- In Progress: ${inProgress.join(', ')||'none'}
+- Average Mastery: ${avg}%
+
+TEACHING STYLE:
+- Adapt complexity to their level (Level ${state.level} = ${state.level < 3 ? 'beginner, use very simple language and lots of analogies' : state.level < 6 ? 'intermediate, balance theory with examples' : 'advanced, go deep into concepts'})
+- Always use practical examples and real-world use cases
+- If they seem confused, simplify further
+- Keep answers concise but complete — max 150 words unless asked for more
+- Use bullet points for lists, numbered steps for processes
+- Encourage them and acknowledge their progress`;
+}
+
+function chatSuggest(text) {
+  document.getElementById('chat-input').value = text;
+  sendChat();
+}
+
+function appendMsg(role, text) {
+  const box = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role === 'user' ? 'user' : 'ai');
+  const label = document.createElement('div');
+  label.className = 'msg-label';
+  label.textContent = role === 'user' ? 'YOU' : 'GROQ ADVISOR';
+  div.appendChild(label);
+  div.appendChild(document.createTextNode(text));
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return div;
+}
+
+function appendTyping() {
+  const box = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg ai chat-typing';
+  div.id = 'chat-typing';
+  div.innerHTML = '<span class="loading-dots"><span>●</span><span>●</span><span>●</span></span>';
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const btn = document.getElementById('chat-send-btn');
+  input.value = '';
+  input.disabled = true;
+  btn.disabled = true;
+
+  // Hide suggestions after first message
+  document.getElementById('chat-suggestions').style.display = 'none';
+
+  appendMsg('user', text);
+  chatHistory.push({ role: 'user', content: text });
+  appendTyping();
+
+  try {
+    const messages = [
+      { role: 'system', content: buildChatSystem() },
+      ...chatHistory.slice(-10)
+    ];
+
+    const res = await fetch('http://localhost:4000/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages })
+    });
+
+    document.getElementById('chat-typing')?.remove();
+
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({error:{message:'Server error'}}));
+      throw new Error(err.error?.message || 'HTTP ' + res.status);
+    }
+
+    const data = await res.json();
+    const reply = data.choices?.[0]?.message?.content || 'No response.';
+
+    chatHistory.push({ role: 'assistant', content: reply });
+
+    // Typewriter into chat bubble
+    const box = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = 'msg ai';
+    const label = document.createElement('div');
+    label.className = 'msg-label';
+    label.textContent = 'GROQ ADVISOR';
+    div.appendChild(label);
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+
+    let i = 0;
+    const cursor = document.createElement('span');
+    cursor.className = 'typing-cursor';
+    div.appendChild(cursor);
+    const interval = setInterval(() => {
+      if (i < reply.length) {
+        div.insertBefore(document.createTextNode(reply[i]), cursor);
+        i++;
+        box.scrollTop = box.scrollHeight;
+      } else {
+        clearInterval(interval);
+        cursor.remove();
+      }
+    }, 10);
+
+  } catch(err) {
+    document.getElementById('chat-typing')?.remove();
+    appendMsg('ai', '⚠ ' + err.message + ' — Make sure server.js is running');
+  }
+
+  input.disabled = false;
+  btn.disabled = false;
+  input.focus();
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function render() {
+  const pct = Math.round(state.xp / state.xpMax * 100);
+  document.getElementById('xp-fill').style.width = pct + '%';
+  document.getElementById('xp-text').textContent = `${state.xp} / ${state.xpMax}`;
+  document.getElementById('twin-level-label').textContent = `// LEVEL ${state.level} — INTERMEDIATE`;
+  document.getElementById('streak').textContent = `🔥 ${state.streak} days`;
+  document.getElementById('stat-streak').textContent = state.streak;
+  document.getElementById('stat-sessions').textContent = state.sessions;
+  document.getElementById('stat-hours').textContent = Math.round(state.totalMins / 60) + 'h';
+  const unlocked = state.topics.filter(t => t.status !== 'locked');
+  const avg = Math.round(unlocked.reduce((a, t) => a + t.pct, 0) / unlocked.length);
+  document.getElementById('avg-mastery').textContent = avg + '%';
+  document.getElementById('stat-mastery').textContent = avg + '%';
+  const completed = state.topics.filter(t => t.status === 'completed').length;
+  document.getElementById('topics-done').textContent = `${completed} / ${state.topics.length}`;
+  const ip = state.topics.filter(t => t.status === 'in-progress').sort((a, b) => b.pct - a.pct)[0];
+  if (ip) document.getElementById('focus-topic').textContent = ip.name.split(' ').slice(-1)[0];
+
+  const tl = document.getElementById('topics-list');
+  tl.innerHTML = state.topics.map(t => {
+    const bm = {completed:'badge-done','in-progress':'badge-active',locked:'badge-lock','not-started':'badge-lock'};
+    const lm = {completed:'DONE','in-progress':'ACTIVE',locked:'LOCKED','not-started':'QUEUED'};
+    return `<div class="topic-item ${t.status}">
+      <div class="topic-icon">${t.icon}</div>
+      <div class="topic-info"><div class="topic-name">${t.name}</div><div class="topic-sub">${t.sub}</div></div>
+      <div class="topic-progress">
+        <div class="topic-pct" style="color:${t.pct===100?'var(--green)':t.pct>0?'#5599ff':'var(--muted)'}">${t.pct}%</div>
+        <div class="topic-bar"><div class="topic-bar-fill ${t.status}" style="width:${t.pct}%"></div></div>
+      </div>
+      <div class="topic-badge ${bm[t.status]}">${lm[t.status]}</div>
+    </div>`;
+  }).join('');
+
+  const al = document.getElementById('activity-list');
+  al.innerHTML = state.activity.map(a => `
+    <div class="activity-item">
+      <div class="act-time">${a.time}</div>
+      <div class="act-dot" style="background:${a.color};box-shadow:0 0 6px ${a.color}"></div>
+      <div class="act-body"><div class="act-title">${a.title}</div><div class="act-sub">${a.sub}</div></div>
+    </div>`).join('');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+
+// ── All available topics for picker ───────────────────────────────────────
+const ALL_TOPICS = [
+  {name:'Python for AI',icon:'🐍',sub:'Numpy · Pandas · Matplotlib',pct:0,status:'not-started'},
+  {name:'ML Fundamentals',icon:'📐',sub:'Regression · Classification · Clustering',pct:0,status:'not-started'},
+  {name:'Neural Networks',icon:'🧠',sub:'Backprop · Activations · Optimizers',pct:0,status:'not-started'},
+  {name:'Transformers & Attention',icon:'🔮',sub:'Self-attention · BERT · GPT',pct:0,status:'not-started'},
+  {name:'Prompt Engineering',icon:'💬',sub:'Zero-shot · Few-shot · Chain-of-thought',pct:0,status:'not-started'},
+  {name:'Computer Vision',icon:'👁️',sub:'CNNs · Object Detection · Segmentation',pct:0,status:'not-started'},
+  {name:'Reinforcement Learning',icon:'🎮',sub:'MDPs · Q-Learning · PPO',pct:0,status:'not-started'},
+  {name:'LLM Fine-tuning',icon:'⚙️',sub:'LoRA · RLHF · Instruction tuning',pct:0,status:'not-started'},
+  {name:'Data Engineering',icon:'🗄️',sub:'Pipelines · ETL · Feature stores',pct:0,status:'not-started'},
+  {name:'MLOps & Deployment',icon:'🚀',sub:'Docker · CI/CD · Model serving',pct:0,status:'not-started'},
+  {name:'NLP Fundamentals',icon:'📝',sub:'Tokenization · Embeddings · BERT',pct:0,status:'not-started'},
+  {name:'AI Ethics & Safety',icon:'⚖️',sub:'Bias · Fairness · Alignment',pct:0,status:'not-started'},
+];
+
+let selectedTopics = [];
+let selectedGoal = '';
+
+function initOnboarding() {
+  const grid = document.getElementById('topic-grid');
+  grid.innerHTML = ALL_TOPICS.map((t,i) => `
+    <div class="topic-pick" id="tp-${i}" onclick="toggleTopic(${i})">
+      <div class="topic-pick-icon">${t.icon}</div>
+      <div>
+        <div class="topic-pick-name">${t.name}</div>
+        <div class="topic-pick-sub">${t.sub}</div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleTopic(i) {
+  const el = document.getElementById('tp-'+i);
+  const name = ALL_TOPICS[i].name;
+  if (selectedTopics.includes(name)) {
+    selectedTopics = selectedTopics.filter(t => t !== name);
+    el.classList.remove('selected');
+  } else {
+    selectedTopics.push(name);
+    el.classList.add('selected');
+  }
+  document.getElementById('select-count').textContent = selectedTopics.length + ' selected';
+  document.getElementById('btn-start').disabled = selectedTopics.length < 2;
+}
+
+function selectGoal(el, goal) {
+  document.querySelectorAll('.goal-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedGoal = goal;
+}
+
+async function startTwin() {
+  const btn = document.getElementById('btn-start');
+  btn.textContent = 'BUILDING ROADMAP...';
+  btn.disabled = true;
+
+  // Build topics state from selection
+  state.topics = selectedTopics.map(name => {
+    const t = ALL_TOPICS.find(a => a.name === name);
+    return { ...t, pct: 0, status: 'not-started' };
+  });
+  state.topics[0].status = 'in-progress'; // first one active
+
+  // Update log session dropdown
+  const sel = document.getElementById('log-topic');
+  sel.innerHTML = '<option value="__custom__">✏ Type my own topic...</option>' + selectedTopics.map(n => `<option>${n}</option>`).join('');
+
+  // Hide onboarding, show app
+  document.getElementById('onboard-overlay').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  render();
+
+  // Auto-ask AI for roadmap
+  const goalStr = selectedGoal ? `My goal: ${selectedGoal}. ` : '';
+  const topicStr = selectedTopics.join(', ');
+  document.getElementById('ai-input').value = `${goalStr}I want to learn: ${topicStr}. Based on these topics, give me a recommended study order and what to start with first.`;
+
+  // Switch to AI tab and fire
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-ai').classList.add('active');
+  document.querySelectorAll('.tab')[2].classList.add('active');
+  renderContextChips();
+  await askAI();
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", function() { initOnboarding(); });
+</script>
+</body>
+</html>
